@@ -445,7 +445,7 @@ if not st.session_state.logged_in:
                 </div>
             </div>
             <div class="login-footer">
-                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.4<br>
+                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.5<br>
                 <span style="font-size: 0.75rem; color: #aaa;">© 2026 | Dibangunkan untuk guru-guru sains</span>
             </div>
         </div>
@@ -456,7 +456,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ============================================
-# CSS - RESPONSIVE
+# CSS
 # ============================================
 
 st.markdown("""
@@ -540,17 +540,8 @@ st.markdown("""
         padding: 0.5rem !important;
     }
     
-    /* TELEFON: 1 COLUMN - SUSUNAN BETUL (MENGIKUT URUTAN) */
+    /* RESPONSIVE: TELEFON vs KOMPUTER */
     @media (max-width: 600px) {
-        .stColumns {
-            display: block !important;
-        }
-        .stColumns > div {
-            width: 100% !important;
-            min-width: 0 !important;
-            padding: 0 !important;
-            margin-bottom: 0.3rem !important;
-        }
         .main-title {
             font-size: 1.8rem !important;
         }
@@ -568,18 +559,15 @@ st.markdown("""
             font-size: 0.8rem !important;
             padding: 0.4rem !important;
         }
+        /* Sembunyikan column untuk telefon - kita guna loop biasa */
+        .mobile-hide {
+            display: none !important;
+        }
     }
     
-    /* MAC: 4 COLUMN */
     @media (min-width: 601px) {
-        .stColumns {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr 1fr 1fr !important;
-            gap: 0.5rem !important;
-        }
-        .stColumns > div {
-            width: 100% !important;
-            min-width: 0 !important;
+        .desktop-hide {
+            display: none !important;
         }
     }
 </style>
@@ -669,7 +657,7 @@ with st.sidebar:
         ["📅 Tempah Makmal", "📊 Jadual Makmal", "📈 Dashboard Admin", "👤 Dashboard Saya", "❌ Batal Tempahan", "📚 Jadual Waktu Guru"]
     )
     st.markdown("---")
-    st.caption("🧪 v6.4 | Dibangunkan untuk guru-guru sains")
+    st.caption("🧪 v6.5 | Dibangunkan untuk guru-guru sains")
 
 # ============================================
 # MENU 1: TEMPAH MAKMAL
@@ -744,26 +732,19 @@ if menu == "📅 Tempah Makmal":
         st.session_state.previous_tempoh = tempoh
     
     # ============================================
-    # SLOT DISPLAY - SUSUNAN BETUL UNTUK SEMUA PERANTI
+    # PAPARAN UNTUK KOMPUTER (4 COLUMN)
     # ============================================
     
-    # Buat container untuk slot
-    slot_container = st.container()
-    
-    with slot_container:
-        # Guna columns(4) untuk Mac, tapi kita isi secara berurutan
+    with st.container():
+        st.markdown('<div class="desktop-hide">', unsafe_allow_html=True)
+        # Ini untuk komputer sahaja
         cols = st.columns(4)
-        
-        # Loop semua slot mengikut urutan (0-10)
         for i in range(len(SLOT_MASA)):
-            mula, tamat = SLOT_MASA[i]
-            is_booked = i in slot_ditempah
-            is_selected = i in st.session_state.slot_terpilih
-            
-            # Tentukan column ke berapa (0,1,2,3,0,1,2,3,...)
-            col_index = i % 4
-            
-            with cols[col_index]:
+            with cols[i % 4]:
+                mula, tamat = SLOT_MASA[i]
+                is_booked = i in slot_ditempah
+                is_selected = i in st.session_state.slot_terpilih
+                
                 if is_booked:
                     info = slot_ditempah[i]
                     st.markdown(f"""
@@ -782,8 +763,8 @@ if menu == "📅 Tempah Makmal":
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    # Available slot
-                    if st.button(f"✅ {mula}-{tamat}", key=f"slot_{i}", use_container_width=True):
+                    if st.button(f"✅ {mula}-{tamat}", key=f"slot_desktop_{i}", use_container_width=True):
+                        # Logik pemilihan slot (sama)
                         if tempoh == "60 Minit (2 slot berturut-turut)":
                             if len(st.session_state.slot_terpilih) == 0:
                                 st.session_state.slot_terpilih.append(i)
@@ -805,6 +786,62 @@ if menu == "📅 Tempah Makmal":
                             else:
                                 st.session_state.slot_terpilih = [i]
                                 popup_warning(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # ============================================
+    # PAPARAN UNTUK TELEFON (1 COLUMN - SUSUNAN BETUL)
+    # ============================================
+    
+    with st.container():
+        st.markdown('<div class="mobile-hide">', unsafe_allow_html=True)
+        # Ini untuk telefon sahaja
+        for i in range(len(SLOT_MASA)):
+            mula, tamat = SLOT_MASA[i]
+            is_booked = i in slot_ditempah
+            is_selected = i in st.session_state.slot_terpilih
+            
+            if is_booked:
+                info = slot_ditempah[i]
+                st.markdown(f"""
+                <div class="slot-booked">
+                    ❌ {mula}-{tamat}<br>
+                    <small>👨‍🏫 {info['guru']}</small>
+                    <small>📚 {info['kelas']}</small>
+                    <small>🔬 {info['aktiviti'][:15]}...</small>
+                </div>
+                """, unsafe_allow_html=True)
+            elif is_selected:
+                st.markdown(f"""
+                <div class="slot-selected">
+                    🔵 {mula}-{tamat}<br>
+                    <small>✅ Dipilih</small>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                if st.button(f"✅ {mula}-{tamat}", key=f"slot_mobile_{i}", use_container_width=True):
+                    # Logik pemilihan slot (sama)
+                    if tempoh == "60 Minit (2 slot berturut-turut)":
+                        if len(st.session_state.slot_terpilih) == 0:
+                            st.session_state.slot_terpilih.append(i)
+                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! Pilih slot bersebelahan.")
+                        elif len(st.session_state.slot_terpilih) == 1:
+                            last_slot = st.session_state.slot_terpilih[0]
+                            if abs(i - last_slot) == 1:
+                                st.session_state.slot_terpilih.append(i)
+                                popup_success(f"✅ {SLOT_MASA[last_slot][0]}-{SLOT_MASA[last_slot][1]} + {mula}-{tamat} dipilih! (60 Minit)")
+                            else:
+                                st.session_state.slot_terpilih = [i]
+                                popup_warning(f"🔄 Tukar ke slot {mula}-{tamat}. Pilih slot bersebelahan.")
+                        else:
+                            popup_warning("⚠️ Anda sudah pilih 2 slot.")
+                    else:
+                        if len(st.session_state.slot_terpilih) == 0:
+                            st.session_state.slot_terpilih.append(i)
+                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! (30 Minit)")
+                        else:
+                            st.session_state.slot_terpilih = [i]
+                            popup_warning(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
+        st.markdown('</div>', unsafe_allow_html=True)
     
     if st.session_state.slot_terpilih:
         selected_slots = sorted(st.session_state.slot_terpilih)
@@ -1058,7 +1095,7 @@ elif menu == "📚 Jadual Waktu Guru":
 
 st.markdown("""
 <div class="footer">
-    🧪 Sistem Tempahan Makmal Sains v6.4 | Dibangunkan untuk guru-guru sains<br>
+    🧪 Sistem Tempahan Makmal Sains v6.5 | Dibangunkan untuk guru-guru sains<br>
     <small>© 2026 | 🔬 Makmal Sains Sekolah</small>
 </div>
 """, unsafe_allow_html=True)
