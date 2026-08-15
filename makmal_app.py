@@ -445,7 +445,7 @@ if not st.session_state.logged_in:
                 </div>
             </div>
             <div class="login-footer">
-                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.3<br>
+                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.4<br>
                 <span style="font-size: 0.75rem; color: #aaa;">© 2026 | Dibangunkan untuk guru-guru sains</span>
             </div>
         </div>
@@ -540,7 +540,7 @@ st.markdown("""
         padding: 0.5rem !important;
     }
     
-    /* TELEFON: 1 COLUMN - SUSUNAN MENGIKUT URUTAN */
+    /* TELEFON: 1 COLUMN - SUSUNAN BETUL (MENGIKUT URUTAN) */
     @media (max-width: 600px) {
         .stColumns {
             display: block !important;
@@ -669,7 +669,7 @@ with st.sidebar:
         ["📅 Tempah Makmal", "📊 Jadual Makmal", "📈 Dashboard Admin", "👤 Dashboard Saya", "❌ Batal Tempahan", "📚 Jadual Waktu Guru"]
     )
     st.markdown("---")
-    st.caption("🧪 v6.3 | Dibangunkan untuk guru-guru sains")
+    st.caption("🧪 v6.4 | Dibangunkan untuk guru-guru sains")
 
 # ============================================
 # MENU 1: TEMPAH MAKMAL
@@ -744,59 +744,67 @@ if menu == "📅 Tempah Makmal":
         st.session_state.previous_tempoh = tempoh
     
     # ============================================
-    # SUSUNAN SLOT BETUL: guna cols[i % 4] tapi susunan ikut i
+    # SLOT DISPLAY - SUSUNAN BETUL UNTUK SEMUA PERANTI
     # ============================================
     
-    cols = st.columns(4)
+    # Buat container untuk slot
+    slot_container = st.container()
     
-    # Loop through all slots in order (0 to 10)
-    for i in range(len(SLOT_MASA)):
-        with cols[i % 4]:
+    with slot_container:
+        # Guna columns(4) untuk Mac, tapi kita isi secara berurutan
+        cols = st.columns(4)
+        
+        # Loop semua slot mengikut urutan (0-10)
+        for i in range(len(SLOT_MASA)):
             mula, tamat = SLOT_MASA[i]
             is_booked = i in slot_ditempah
             is_selected = i in st.session_state.slot_terpilih
             
-            if is_booked:
-                info = slot_ditempah[i]
-                st.markdown(f"""
-                <div class="slot-booked">
-                    ❌ {mula}-{tamat}<br>
-                    <small>👨‍🏫 {info['guru']}</small>
-                    <small>📚 {info['kelas']}</small>
-                    <small>🔬 {info['aktiviti'][:15]}...</small>
-                </div>
-                """, unsafe_allow_html=True)
-            elif is_selected:
-                st.markdown(f"""
-                <div class="slot-selected">
-                    🔵 {mula}-{tamat}<br>
-                    <small>✅ Dipilih</small>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                # Available slot
-                if st.button(f"✅ {mula}-{tamat}", key=f"slot_{i}", use_container_width=True):
-                    if tempoh == "60 Minit (2 slot berturut-turut)":
-                        if len(st.session_state.slot_terpilih) == 0:
-                            st.session_state.slot_terpilih.append(i)
-                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! Pilih slot bersebelahan.")
-                        elif len(st.session_state.slot_terpilih) == 1:
-                            last_slot = st.session_state.slot_terpilih[0]
-                            if abs(i - last_slot) == 1:
+            # Tentukan column ke berapa (0,1,2,3,0,1,2,3,...)
+            col_index = i % 4
+            
+            with cols[col_index]:
+                if is_booked:
+                    info = slot_ditempah[i]
+                    st.markdown(f"""
+                    <div class="slot-booked">
+                        ❌ {mula}-{tamat}<br>
+                        <small>👨‍🏫 {info['guru']}</small>
+                        <small>📚 {info['kelas']}</small>
+                        <small>🔬 {info['aktiviti'][:15]}...</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif is_selected:
+                    st.markdown(f"""
+                    <div class="slot-selected">
+                        🔵 {mula}-{tamat}<br>
+                        <small>✅ Dipilih</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Available slot
+                    if st.button(f"✅ {mula}-{tamat}", key=f"slot_{i}", use_container_width=True):
+                        if tempoh == "60 Minit (2 slot berturut-turut)":
+                            if len(st.session_state.slot_terpilih) == 0:
                                 st.session_state.slot_terpilih.append(i)
-                                popup_success(f"✅ {SLOT_MASA[last_slot][0]}-{SLOT_MASA[last_slot][1]} + {mula}-{tamat} dipilih! (60 Minit)")
+                                popup_success(f"✅ Slot {mula}-{tamat} dipilih! Pilih slot bersebelahan.")
+                            elif len(st.session_state.slot_terpilih) == 1:
+                                last_slot = st.session_state.slot_terpilih[0]
+                                if abs(i - last_slot) == 1:
+                                    st.session_state.slot_terpilih.append(i)
+                                    popup_success(f"✅ {SLOT_MASA[last_slot][0]}-{SLOT_MASA[last_slot][1]} + {mula}-{tamat} dipilih! (60 Minit)")
+                                else:
+                                    st.session_state.slot_terpilih = [i]
+                                    popup_warning(f"🔄 Tukar ke slot {mula}-{tamat}. Pilih slot bersebelahan.")
+                            else:
+                                popup_warning("⚠️ Anda sudah pilih 2 slot.")
+                        else:
+                            if len(st.session_state.slot_terpilih) == 0:
+                                st.session_state.slot_terpilih.append(i)
+                                popup_success(f"✅ Slot {mula}-{tamat} dipilih! (30 Minit)")
                             else:
                                 st.session_state.slot_terpilih = [i]
-                                popup_warning(f"🔄 Tukar ke slot {mula}-{tamat}. Pilih slot bersebelahan.")
-                        else:
-                            popup_warning("⚠️ Anda sudah pilih 2 slot.")
-                    else:
-                        if len(st.session_state.slot_terpilih) == 0:
-                            st.session_state.slot_terpilih.append(i)
-                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! (30 Minit)")
-                        else:
-                            st.session_state.slot_terpilih = [i]
-                            popup_warning(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
+                                popup_warning(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
     
     if st.session_state.slot_terpilih:
         selected_slots = sorted(st.session_state.slot_terpilih)
@@ -1050,7 +1058,7 @@ elif menu == "📚 Jadual Waktu Guru":
 
 st.markdown("""
 <div class="footer">
-    🧪 Sistem Tempahan Makmal Sains v6.3 | Dibangunkan untuk guru-guru sains<br>
+    🧪 Sistem Tempahan Makmal Sains v6.4 | Dibangunkan untuk guru-guru sains<br>
     <small>© 2026 | 🔬 Makmal Sains Sekolah</small>
 </div>
 """, unsafe_allow_html=True)
