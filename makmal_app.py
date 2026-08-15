@@ -153,7 +153,6 @@ def buat_tempahan(tarikh, slot_mula, slot_tamat, guru, kelas, aktiviti, no_telef
 def batal_tempahan(tempahan_id):
     response = supabase.table("tempahan").select("*").eq("id", tempahan_id).execute()
     if response.data:
-        tempahan = response.data[0]
         supabase.table("tempahan")\
             .update({"status": "batal"})\
             .eq("id", tempahan_id)\
@@ -446,7 +445,7 @@ if not st.session_state.logged_in:
                 </div>
             </div>
             <div class="login-footer">
-                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.0<br>
+                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.1<br>
                 <span style="font-size: 0.75rem; color: #aaa;">© 2026 | Dibangunkan untuk guru-guru sains</span>
             </div>
         </div>
@@ -457,7 +456,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ============================================
-# CSS
+# CSS - RESPONSIVE UNTUK TELEFON
 # ============================================
 
 st.markdown("""
@@ -480,26 +479,44 @@ st.markdown("""
     .slot-selected {
         background: linear-gradient(135deg, #0a2463, #5c2d91) !important;
         color: white !important;
-        padding: 0.7rem;
-        border-radius: 0.8rem;
-        text-align: center;
+        padding: 0.5rem !important;
+        border-radius: 0.8rem !important;
+        text-align: center !important;
         border: 3px solid #2ecc71 !important;
-        margin: 0.2rem 0;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        margin: 0.2rem 0 !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+        font-size: 0.8rem !important;
     }
     .slot-booked {
         background: linear-gradient(135deg, #f8d7da, #f5c6cb) !important;
-        padding: 0.7rem;
-        border-radius: 0.8rem;
-        text-align: center;
+        padding: 0.5rem !important;
+        border-radius: 0.8rem !important;
+        text-align: center !important;
         border: 2px solid #dc3545 !important;
-        margin: 0.2rem 0;
+        margin: 0.2rem 0 !important;
+        font-size: 0.8rem !important;
+        opacity: 0.8 !important;
+        cursor: not-allowed !important;
     }
     .slot-booked small {
         display: block;
-        font-size: 0.7rem;
-        color: #721c24;
-        margin-top: 0.2rem;
+        font-size: 0.6rem !important;
+        color: #721c24 !important;
+        margin-top: 0.1rem !important;
+    }
+    .slot-available {
+        background: linear-gradient(135deg, #d4edda, #b7e4c7) !important;
+        padding: 0.5rem !important;
+        border-radius: 0.8rem !important;
+        text-align: center !important;
+        border: 2px solid #28a745 !important;
+        margin: 0.2rem 0 !important;
+        font-size: 0.8rem !important;
+        cursor: pointer !important;
+    }
+    .slot-available:hover {
+        transform: scale(1.02) !important;
+        box-shadow: 0 4px 8px rgba(40,167,69,0.3) !important;
     }
     .dashboard-card {
         background: white;
@@ -517,21 +534,39 @@ st.markdown("""
         padding: 1rem;
         border-top: 1px solid #ddd;
     }
+    /* Responsive: 2 column untuk telefon, 4 column untuk desktop */
+    .stButton button {
+        width: 100% !important;
+        font-size: 0.75rem !important;
+        padding: 0.4rem !important;
+    }
     @media (max-width: 600px) {
         .stColumns {
             display: grid !important;
             grid-template-columns: 1fr 1fr !important;
-            gap: 0.5rem !important;
+            gap: 0.3rem !important;
         }
         .stColumns > div {
             width: 100% !important;
             min-width: 0 !important;
+            padding: 0 !important;
         }
         .main-title {
             font-size: 1.8rem !important;
         }
         .sub-title {
             font-size: 0.9rem !important;
+        }
+        .slot-selected, .slot-booked, .slot-available {
+            font-size: 0.65rem !important;
+            padding: 0.3rem !important;
+        }
+        .slot-selected small, .slot-booked small {
+            font-size: 0.5rem !important;
+        }
+        .stButton button {
+            font-size: 0.65rem !important;
+            padding: 0.2rem !important;
         }
     }
 </style>
@@ -621,7 +656,7 @@ with st.sidebar:
         ["📅 Tempah Makmal", "📊 Jadual Makmal", "📈 Dashboard Admin", "👤 Dashboard Saya", "❌ Batal Tempahan", "📚 Jadual Waktu Guru"]
     )
     st.markdown("---")
-    st.caption("🧪 v6.0 | Dibangunkan untuk guru-guru sains")
+    st.caption("🧪 v6.1 | Dibangunkan untuk guru-guru sains")
 
 # ============================================
 # MENU 1: TEMPAH MAKMAL
@@ -695,6 +730,7 @@ if menu == "📅 Tempah Makmal":
         st.session_state.slot_terpilih = []
         st.session_state.previous_tempoh = tempoh
     
+    # 4 column untuk desktop, auto jadi 2 column untuk telefon (dari CSS)
     cols = st.columns(4)
     
     for i, (mula, tamat) in enumerate(SLOT_MASA):
@@ -709,7 +745,7 @@ if menu == "📅 Tempah Makmal":
                     ❌ {mula}-{tamat}<br>
                     <small>👨‍🏫 {info['guru']}</small>
                     <small>📚 {info['kelas']}</small>
-                    <small>🔬 {info['aktiviti'][:20]}...</small>
+                    <small>🔬 {info['aktiviti'][:15]}...</small>
                 </div>
                 """, unsafe_allow_html=True)
             elif is_selected:
@@ -720,6 +756,7 @@ if menu == "📅 Tempah Makmal":
                 </div>
                 """, unsafe_allow_html=True)
             else:
+                # Available slot
                 if st.button(f"✅ {mula}-{tamat}", key=f"slot_{i}", use_container_width=True):
                     if tempoh == "60 Minit (2 slot berturut-turut)":
                         if len(st.session_state.slot_terpilih) == 0:
@@ -995,7 +1032,7 @@ elif menu == "📚 Jadual Waktu Guru":
 
 st.markdown("""
 <div class="footer">
-    🧪 Sistem Tempahan Makmal Sains v6.0 | Dibangunkan untuk guru-guru sains<br>
+    🧪 Sistem Tempahan Makmal Sains v6.1 | Dibangunkan untuk guru-guru sains<br>
     <small>© 2026 | 🔬 Makmal Sains Sekolah</small>
 </div>
 """, unsafe_allow_html=True)
