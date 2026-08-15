@@ -445,7 +445,7 @@ if not st.session_state.logged_in:
                 </div>
             </div>
             <div class="login-footer">
-                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.2<br>
+                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.3<br>
                 <span style="font-size: 0.75rem; color: #aaa;">© 2026 | Dibangunkan untuk guru-guru sains</span>
             </div>
         </div>
@@ -456,7 +456,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ============================================
-# CSS - RESPONSIVE: 4 COLUMN UNTUK MAC, 1 COLUMN UNTUK TELEFON
+# CSS - RESPONSIVE
 # ============================================
 
 st.markdown("""
@@ -540,7 +540,7 @@ st.markdown("""
         padding: 0.5rem !important;
     }
     
-    /* TELEFON: 1 COLUMN */
+    /* TELEFON: 1 COLUMN - SUSUNAN MENGIKUT URUTAN */
     @media (max-width: 600px) {
         .stColumns {
             display: block !important;
@@ -669,7 +669,7 @@ with st.sidebar:
         ["📅 Tempah Makmal", "📊 Jadual Makmal", "📈 Dashboard Admin", "👤 Dashboard Saya", "❌ Batal Tempahan", "📚 Jadual Waktu Guru"]
     )
     st.markdown("---")
-    st.caption("🧪 v6.2 | Dibangunkan untuk guru-guru sains")
+    st.caption("🧪 v6.3 | Dibangunkan untuk guru-guru sains")
 
 # ============================================
 # MENU 1: TEMPAH MAKMAL
@@ -744,14 +744,15 @@ if menu == "📅 Tempah Makmal":
         st.session_state.previous_tempoh = tempoh
     
     # ============================================
-    # 4 COLUMN UNTUK MAC, 1 COLUMN UNTUK TELEFON
+    # SUSUNAN SLOT BETUL: guna cols[i % 4] tapi susunan ikut i
     # ============================================
     
-    # Guna st.columns(4) — CSS akan auto tukar ke 1 column untuk telefon
     cols = st.columns(4)
     
-    for i, (mula, tamat) in enumerate(SLOT_MASA):
+    # Loop through all slots in order (0 to 10)
+    for i in range(len(SLOT_MASA)):
         with cols[i % 4]:
+            mula, tamat = SLOT_MASA[i]
             is_booked = i in slot_ditempah
             is_selected = i in st.session_state.slot_terpilih
             
@@ -1049,7 +1050,7 @@ elif menu == "📚 Jadual Waktu Guru":
 
 st.markdown("""
 <div class="footer">
-    🧪 Sistem Tempahan Makmal Sains v6.2 | Dibangunkan untuk guru-guru sains<br>
+    🧪 Sistem Tempahan Makmal Sains v6.3 | Dibangunkan untuk guru-guru sains<br>
     <small>© 2026 | 🔬 Makmal Sains Sekolah</small>
 </div>
 """, unsafe_allow_html=True)
