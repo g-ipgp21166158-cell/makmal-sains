@@ -1,11 +1,11 @@
 import streamlit as st
 from supabase import create_client, Client
 import datetime
-import requests
 import pandas as pd
 from datetime import datetime as dt, timedelta
 import io
 import base64
+import time
 
 # ============================================
 # KONFIGURASI
@@ -13,8 +13,6 @@ import base64
 
 SUPABASE_URL = "https://voxsfhphiaxdcxcjxfcw.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZveHNmaHBoaWF4ZGN4Y2p4ZmN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3MTU2NTMsImV4cCI6MjEwMjI5MTY1M30.7RIWZCp2fiOxwBNIf_Y7pi9tcBHqlZHzmMt7f6ZqVTQ"
-TELEGRAM_TOKEN = "8980298479:AAHcpE4VF8q05E8h1KsYOcTIEYJGjHSIVeU"
-TELEGRAM_CHAT_ID = "1105624750"
 
 # ============================================
 # PASSWORD GURU & ADMIN
@@ -124,24 +122,6 @@ SLOT_MASA = [
 ]
 
 HARI_BEKERJA = [0, 1, 2, 3, 6]
-NAMA_HARI = ["Isnin", "Selasa", "Rabu", "Khamis", "Jumaat", "Sabtu", "Ahad"]
-
-# ============================================
-# FUNGSI TELEGRAM
-# ============================================
-
-def hantar_telegram(mesej, chat_id=None):
-    try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        target_chat = chat_id if chat_id else TELEGRAM_CHAT_ID
-        payload = {
-            "chat_id": target_chat,
-            "text": mesej,
-            "parse_mode": "HTML"
-        }
-        requests.post(url, json=payload)
-    except:
-        pass
 
 # ============================================
 # FUNGSI TEMPAHAN
@@ -168,33 +148,6 @@ def buat_tempahan(tarikh, slot_mula, slot_tamat, guru, kelas, aktiviti, no_telef
         "telah_hadir": False
     }
     result = supabase.table("tempahan").insert(data).execute()
-    
-    mesej_admin = f"""🧪 <b>TEMPAHAN MAKMAL BARU</b> 🧪
-
-📅 Tarikh: {tarikh.strftime('%A, %d %B %Y')}
-⏰ Masa: {SLOT_MASA[slot_mula][0]} - {SLOT_MASA[slot_tamat][1]}
-👨‍🏫 Guru: {guru}
-📚 Kelas: {kelas}
-🔬 Aktiviti: {aktiviti}
-📱 Telefon: {no_telefon}
-
-📌 Status: BERJAYA
-"""
-    hantar_telegram(mesej_admin)
-    
-    mesej_guru = f"""🧪 <b>Pengesahan Tempahan Makmal</b> 🧪
-
-✅ Tempahan anda BERJAYA!
-
-📅 Tarikh: {tarikh.strftime('%A, %d %B %Y')}
-⏰ Masa: {SLOT_MASA[slot_mula][0]} - {SLOT_MASA[slot_tamat][1]}
-📚 Kelas: {kelas}
-🔬 Aktiviti: {aktiviti}
-
-Terima kasih menggunakan sistem tempahan makmal.
-"""
-    hantar_telegram(mesej_guru)
-    
     return result
 
 def batal_tempahan(tempahan_id):
@@ -205,17 +158,8 @@ def batal_tempahan(tempahan_id):
             .update({"status": "batal"})\
             .eq("id", tempahan_id)\
             .execute()
-        
-        mesej = f"""❌ <b>TEMPAHAN DIBATALKAN</b> ❌
-
-🧪 Makmal Sains
-📅 Tarikh: {tempahan['tarikh']}
-👨‍🏫 Guru: {tempahan['guru']}
-📚 Kelas: {tempahan['kelas']}
-
-Tempahan telah dibatalkan.
-"""
-        hantar_telegram(mesej)
+        return True
+    return False
 
 def tandakan_hadir(tempahan_id):
     supabase.table("tempahan")\
@@ -224,34 +168,28 @@ def tandakan_hadir(tempahan_id):
         .execute()
 
 # ============================================
-# PERINGATAN AUTOMATIK
+# FUNGSI POP-UP
 # ============================================
 
-def semak_peringatan():
-    if 'peringatan_hari' not in st.session_state:
-        st.session_state.peringatan_hari = None
-    
-    hari_ini = datetime.date.today()
-    
-    if st.session_state.peringatan_hari != hari_ini:
-        esok = hari_ini + timedelta(days=1)
-        tempahan_esok = dapatkan_tempahan(esok)
-        
-        if tempahan_esok:
-            for t in tempahan_esok:
-                mesej = f"""🔔 <b>PERINGATAN TEMPAHAN MAKMAL</b> 🔔
+def popup_success(mesej):
+    sound_html = """
+    <audio autoplay>
+        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg">
+    </audio>
+    """
+    st.markdown(sound_html, unsafe_allow_html=True)
+    st.balloons()
+    st.success(mesej)
+    time.sleep(0.5)
 
-📅 Esok: {esok.strftime('%A, %d %B %Y')}
-⏰ Masa: {SLOT_MASA[t['slot_mula']][0]} - {SLOT_MASA[t['slot_tamat']][1]}
-👨‍🏫 Guru: {t['guru']}
-📚 Kelas: {t['kelas']}
-🔬 Aktiviti: {t['aktiviti']}
+def popup_error(mesej):
+    st.error(mesej)
 
-Jangan lupa! 🧪
-"""
-                hantar_telegram(mesej)
-        
-        st.session_state.peringatan_hari = hari_ini
+def popup_warning(mesej):
+    st.warning(mesej)
+
+def popup_info(mesej):
+    st.info(mesej)
 
 # ============================================
 # FUNGSI EXPORT
@@ -394,14 +332,12 @@ st.set_page_config(
 )
 
 # ============================================
-# LOGIN PAGE - CANTIK & PENUH
+# LOGIN PAGE
 # ============================================
 
 if not st.session_state.logged_in:
-    # CSS untuk Login Page
     st.markdown("""
     <style>
-        /* Background dengan gradien */
         .login-container {
             display: flex;
             justify-content: center;
@@ -465,7 +401,6 @@ if not st.session_state.logged_in:
             display: inline-block;
             margin-top: 0.5rem;
         }
-        /* Mobile responsive */
         @media (max-width: 600px) {
             .login-box {
                 padding: 2rem 1.5rem;
@@ -481,7 +416,6 @@ if not st.session_state.logged_in:
     </style>
     """, unsafe_allow_html=True)
     
-    # Login Page Content
     st.markdown("""
     <div class="login-container">
         <div class="login-box">
@@ -512,19 +446,18 @@ if not st.session_state.logged_in:
                 </div>
             </div>
             <div class="login-footer">
-                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v3.5<br>
+                <strong>🧪 Makmal Sains Sekolah</strong> &bull; v6.0<br>
                 <span style="font-size: 0.75rem; color: #aaa;">© 2026 | Dibangunkan untuk guru-guru sains</span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Login box di sidebar (tetap ada)
     login()
     st.stop()
 
 # ============================================
-# CSS LIGHT MODE (DEFAULT)
+# CSS
 # ============================================
 
 st.markdown("""
@@ -584,12 +517,25 @@ st.markdown("""
         padding: 1rem;
         border-top: 1px solid #ddd;
     }
+    @media (max-width: 600px) {
+        .stColumns {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.5rem !important;
+        }
+        .stColumns > div {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+        .main-title {
+            font-size: 1.8rem !important;
+        }
+        .sub-title {
+            font-size: 0.9rem !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# ============================================
-# DARK MODE CSS
-# ============================================
 
 if st.session_state.dark_mode:
     st.markdown("""
@@ -651,7 +597,7 @@ if st.session_state.dark_mode:
     """, unsafe_allow_html=True)
 
 # ============================================
-# MAIN APP (LEPAS LOGIN)
+# MAIN APP
 # ============================================
 
 login()
@@ -659,15 +605,11 @@ login()
 if not st.session_state.logged_in:
     st.stop()
 
-# Dark Mode Toggle di sidebar
 with st.sidebar:
     st.markdown("---")
     tema = "🌙 Dark Mode" if not st.session_state.dark_mode else "☀️ Light Mode"
     if st.button(tema, use_container_width=True):
         toggle_dark_mode()
-
-# Peringatan
-semak_peringatan()
 
 st.markdown('<h1 class="main-title">🧪 Sistem Tempahan Makmal Sains</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">🔬 Makmal Sains Sekolah | 📚 Tempah & Urus Penggunaan Makmal</p>', unsafe_allow_html=True)
@@ -679,7 +621,7 @@ with st.sidebar:
         ["📅 Tempah Makmal", "📊 Jadual Makmal", "📈 Dashboard Admin", "👤 Dashboard Saya", "❌ Batal Tempahan", "📚 Jadual Waktu Guru"]
     )
     st.markdown("---")
-    st.caption("🧪 v3.5 | Dibangunkan untuk guru-guru sains")
+    st.caption("🧪 v6.0 | Dibangunkan untuk guru-guru sains")
 
 # ============================================
 # MENU 1: TEMPAH MAKMAL
@@ -700,16 +642,16 @@ if menu == "📅 Tempah Makmal":
         
         hari_tinggal = (tarikh - datetime.date.today()).days
         if hari_tinggal == 0:
-            st.info("📌 Tempahan untuk HARI INI! 🏃‍♂️")
+            popup_info("📌 Tempahan untuk HARI INI! 🏃‍♂️")
         elif hari_tinggal == 1:
-            st.warning("⏰ Tempahan untuk ESOK! Jangan lupa!")
+            popup_warning("⏰ Tempahan untuk ESOK! Jangan lupa!")
         elif hari_tinggal <= 3:
-            st.info(f"📅 Tempahan dalam {hari_tinggal} hari lagi")
+            popup_info(f"📅 Tempahan dalam {hari_tinggal} hari lagi")
         else:
-            st.success(f"📅 Tempahan dalam {hari_tinggal} hari lagi")
+            popup_info(f"📅 Tempahan dalam {hari_tinggal} hari lagi")
         
         if tarikh.weekday() not in HARI_BEKERJA:
-            st.error("⚠️ Maaf, sekolah hanya buka Ahad - Khamis. Sila pilih tarikh lain.")
+            popup_error("⚠️ Maaf, sekolah hanya buka Ahad - Khamis. Sila pilih tarikh lain.")
             st.stop()
         
         guru = st.selectbox("Pilih Guru", GURU, index=GURU.index(st.session_state.current_guru))
@@ -782,37 +724,37 @@ if menu == "📅 Tempah Makmal":
                     if tempoh == "60 Minit (2 slot berturut-turut)":
                         if len(st.session_state.slot_terpilih) == 0:
                             st.session_state.slot_terpilih.append(i)
-                            st.success(f"✅ Slot {mula}-{tamat} dipilih! Pilih slot bersebelahan.")
+                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! Pilih slot bersebelahan.")
                         elif len(st.session_state.slot_terpilih) == 1:
                             last_slot = st.session_state.slot_terpilih[0]
                             if abs(i - last_slot) == 1:
                                 st.session_state.slot_terpilih.append(i)
-                                st.success(f"✅ {SLOT_MASA[last_slot][0]}-{SLOT_MASA[last_slot][1]} + {mula}-{tamat} dipilih! (60 Minit)")
+                                popup_success(f"✅ {SLOT_MASA[last_slot][0]}-{SLOT_MASA[last_slot][1]} + {mula}-{tamat} dipilih! (60 Minit)")
                             else:
                                 st.session_state.slot_terpilih = [i]
-                                st.info(f"🔄 Tukar ke slot {mula}-{tamat}. Pilih slot bersebelahan.")
+                                popup_warning(f"🔄 Tukar ke slot {mula}-{tamat}. Pilih slot bersebelahan.")
                         else:
-                            st.warning("⚠️ Anda sudah pilih 2 slot.")
+                            popup_warning("⚠️ Anda sudah pilih 2 slot.")
                     else:
                         if len(st.session_state.slot_terpilih) == 0:
                             st.session_state.slot_terpilih.append(i)
-                            st.success(f"✅ Slot {mula}-{tamat} dipilih! (30 Minit)")
+                            popup_success(f"✅ Slot {mula}-{tamat} dipilih! (30 Minit)")
                         else:
                             st.session_state.slot_terpilih = [i]
-                            st.info(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
+                            popup_warning(f"🔄 Tukar ke slot {mula}-{tamat} (30 Minit)")
     
     if st.session_state.slot_terpilih:
         selected_slots = sorted(st.session_state.slot_terpilih)
         slot_text = " + ".join([f"{SLOT_MASA[i][0]}-{SLOT_MASA[i][1]}" for i in selected_slots])
-        st.info(f"📌 Slot dipilih: {slot_text}")
+        popup_info(f"📌 Slot dipilih: {slot_text}")
         
         if st.button("🔄 Batal Pilihan", type="secondary", use_container_width=True):
             st.session_state.slot_terpilih = []
-            st.success("✅ Pilihan dibatalkan.")
+            popup_info("✅ Pilihan dibatalkan.")
     
     if st.button("📝 Tempah Sekarang", type="primary", use_container_width=True):
         if not st.session_state.slot_terpilih:
-            st.warning("⚠️ Sila pilih slot masa yang kosong.")
+            popup_warning("⚠️ Sila pilih slot masa yang kosong.")
         else:
             sorted_slots = sorted(st.session_state.slot_terpilih)
             slot_mula = sorted_slots[0]
@@ -820,22 +762,20 @@ if menu == "📅 Tempah Makmal":
             
             if tempoh == "60 Minit (2 slot berturut-turut)":
                 if len(sorted_slots) != 2:
-                    st.error("❌ Untuk 60 minit, sila pilih 2 slot.")
+                    popup_error("❌ Untuk 60 minit, sila pilih 2 slot.")
                 elif slot_tamat != slot_mula + 1:
-                    st.error("❌ Untuk 60 minit, 2 slot mesti berturut-turut.")
+                    popup_error("❌ Untuk 60 minit, 2 slot mesti berturut-turut.")
                 else:
                     buat_tempahan(tarikh, slot_mula, slot_tamat, guru, kelas_full, aktiviti, no_telefon)
-                    st.success("✅ Tempahan 60 Minit berjaya!")
-                    st.balloons()
+                    popup_success("✅ Tempahan 60 Minit BERJAYA! 🎉")
                     st.session_state.slot_terpilih = []
                     st.rerun()
             else:
                 if len(sorted_slots) != 1:
-                    st.error("❌ Untuk 30 minit, sila pilih 1 slot sahaja.")
+                    popup_error("❌ Untuk 30 minit, sila pilih 1 slot sahaja.")
                 else:
                     buat_tempahan(tarikh, slot_mula, slot_mula, guru, kelas_full, aktiviti, no_telefon)
-                    st.success("✅ Tempahan 30 Minit berjaya!")
-                    st.balloons()
+                    popup_success("✅ Tempahan 30 Minit BERJAYA! 🎉")
                     st.session_state.slot_terpilih = []
                     st.rerun()
 
@@ -850,18 +790,18 @@ elif menu == "📊 Jadual Makmal":
     
     hari_tinggal = (tarikh_lihat - datetime.date.today()).days
     if hari_tinggal == 0:
-        st.info("📌 Jadual untuk HARI INI")
+        popup_info("📌 Jadual untuk HARI INI")
     elif hari_tinggal == 1:
-        st.warning("📌 Jadual untuk ESOK")
+        popup_warning("📌 Jadual untuk ESOK")
     elif hari_tinggal > 1:
-        st.info(f"📌 Jadual untuk {hari_tinggal} hari lagi")
+        popup_info(f"📌 Jadual untuk {hari_tinggal} hari lagi")
     
     if tarikh_lihat.weekday() not in HARI_BEKERJA:
-        st.warning("📌 Sekolah cuti pada hari ini.")
+        popup_warning("📌 Sekolah cuti pada hari ini.")
     else:
         tempahan = dapatkan_tempahan(tarikh_lihat)
         if not tempahan:
-            st.info("📌 Tiada tempahan pada hari ini.")
+            popup_info("📌 Tiada tempahan pada hari ini.")
         else:
             df = pd.DataFrame(tempahan)
             df['Masa'] = df.apply(lambda x: f"{SLOT_MASA[x['slot_mula']][0]} - {SLOT_MASA[x['slot_tamat']][1]}", axis=1)
@@ -877,7 +817,7 @@ elif menu == "📈 Dashboard Admin":
     st.subheader("📈 Dashboard Admin")
     
     if st.session_state.current_guru != "admin":
-        st.error("⛔ Akses ditolak! Halaman ini hanya untuk admin.")
+        popup_error("⛔ Akses ditolak! Halaman ini hanya untuk admin.")
         st.stop()
     
     tarikh_mula = st.date_input("Dari", datetime.date.today() - timedelta(days=30))
@@ -892,7 +832,7 @@ elif menu == "📈 Dashboard Admin":
     data = response.data
     
     if not data:
-        st.info("📌 Tiada tempahan dalam tempoh ini.")
+        popup_info("📌 Tiada tempahan dalam tempoh ini.")
     else:
         df = pd.DataFrame(data)
         df['tarikh'] = pd.to_datetime(df['tarikh'])
@@ -939,10 +879,10 @@ elif menu == "📈 Dashboard Admin":
                     with col5:
                         if st.button("✅ Hadir", key=f"hadir_{row['id']}"):
                             tandakan_hadir(row['id'])
-                            st.success("✅ Tandakan hadir berjaya!")
+                            popup_success("✅ Tandakan hadir berjaya!")
                             st.rerun()
         else:
-            st.info("📌 Tiada tempahan aktif yang perlu ditanda hadir.")
+            popup_info("📌 Tiada tempahan aktif yang perlu ditanda hadir.")
         
         st.subheader("🔍 Carian Tempahan")
         cari = st.text_input("Cari (Nama Guru / Tarikh)")
@@ -952,7 +892,7 @@ elif menu == "📈 Dashboard Admin":
             if not hasil.empty:
                 st.dataframe(hasil[['tarikh', 'guru', 'kelas', 'aktiviti']])
             else:
-                st.info("📌 Tiada hasil carian.")
+                popup_info("📌 Tiada hasil carian.")
         
         st.subheader("📥 Export Laporan")
         col1, col2 = st.columns(2)
@@ -963,7 +903,7 @@ elif menu == "📈 Dashboard Admin":
                     b64 = base64.b64encode(html.encode()).decode()
                     href = f'<a href="data:text/html;base64,{b64}" download="laporan_tempahan.html">📥 Klik untuk muat turun PDF (HTML)</a>'
                     st.markdown(href, unsafe_allow_html=True)
-                    st.info("💡 Buka fail HTML dan print sebagai PDF untuk simpan sebagai PDF.")
+                    popup_success("✅ PDF siap! Klik link di atas untuk muat turun.")
         with col2:
             if st.button("📊 Export Excel", use_container_width=True):
                 try:
@@ -972,8 +912,9 @@ elif menu == "📈 Dashboard Admin":
                         b64 = base64.b64encode(excel_data).decode()
                         href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="laporan_tempahan.xlsx">📥 Klik untuk muat turun Excel</a>'
                         st.markdown(href, unsafe_allow_html=True)
+                        popup_success("✅ Excel siap! Klik link di atas untuk muat turun.")
                 except Exception as e:
-                    st.error(f"❌ Error: {e}. Pastikan 'xlsxwriter' sudah install.")
+                    popup_error(f"❌ Error: {e}. Pastikan 'xlsxwriter' sudah install.")
 
 # ============================================
 # MENU 4: DASHBOARD GURU
@@ -981,7 +922,7 @@ elif menu == "📈 Dashboard Admin":
 
 elif menu == "👤 Dashboard Saya":
     if st.session_state.current_guru == "admin":
-        st.warning("👋 Admin, anda tidak mempunyai data tempahan peribadi. Sila gunakan Dashboard Admin.")
+        popup_warning("👋 Admin, anda tidak mempunyai data tempahan peribadi. Sila gunakan Dashboard Admin.")
     else:
         dashboard_guru(st.session_state.current_guru)
 
@@ -993,7 +934,7 @@ elif menu == "❌ Batal Tempahan":
     st.subheader("❌ Batal Tempahan")
     
     if st.session_state.current_guru == "admin":
-        st.warning("👋 Admin, anda tidak boleh membatalkan tempahan. Ini untuk guru-guru sahaja.")
+        popup_warning("👋 Admin, anda tidak boleh membatalkan tempahan. Ini untuk guru-guru sahaja.")
     else:
         tarikh_batal = st.date_input("Pilih Tarikh", datetime.date.today())
         tempahan = dapatkan_tempahan(tarikh_batal)
@@ -1001,7 +942,7 @@ elif menu == "❌ Batal Tempahan":
         tempahan_guru = [t for t in tempahan if t['guru'] == st.session_state.current_guru]
         
         if not tempahan_guru:
-            st.info(f"📌 Tiada tempahan aktif untuk {st.session_state.current_guru} pada tarikh ini.")
+            popup_info(f"📌 Tiada tempahan aktif untuk {st.session_state.current_guru} pada tarikh ini.")
         else:
             for t in tempahan_guru:
                 col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
@@ -1015,9 +956,9 @@ elif menu == "❌ Batal Tempahan":
                     st.write(f"🔬 {t['aktiviti']}")
                 with col5:
                     if st.button("❌ Batal", key=f"batal_{t['id']}"):
-                        batal_tempahan(t['id'])
-                        st.success("✅ Tempahan dibatalkan!")
-                        st.rerun()
+                        if batal_tempahan(t['id']):
+                            popup_success("✅ Tempahan dibatalkan!")
+                            st.rerun()
                 st.divider()
 
 # ============================================
@@ -1054,7 +995,7 @@ elif menu == "📚 Jadual Waktu Guru":
 
 st.markdown("""
 <div class="footer">
-    🧪 Sistem Tempahan Makmal Sains v3.5 | Dibangunkan untuk guru-guru sains<br>
+    🧪 Sistem Tempahan Makmal Sains v6.0 | Dibangunkan untuk guru-guru sains<br>
     <small>© 2026 | 🔬 Makmal Sains Sekolah</small>
 </div>
 """, unsafe_allow_html=True)
